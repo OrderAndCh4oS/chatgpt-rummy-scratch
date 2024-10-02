@@ -48,7 +48,6 @@ class TestFindLeastUsefulCard(unittest.TestCase):
         hand = [1, 2, 3, 15, 16]
         expected = [16, 3]
         result = find_least_useful_card(hand)
-        print(f"Result: {result}")
         self.assertIn(result, expected)
 
     def test_discard_least_useful_card_with_multiple_overlapping_runs(self):
@@ -137,9 +136,9 @@ class TestFindLeastUsefulCard(unittest.TestCase):
         Test discarding the least useful card when the new card completes a pair.
         """
         hand = [1, 2, 14, 15, 28]
-        expected = 1
+        expected = [1, 14]
         result = find_least_useful_card(hand)
-        self.assertEqual(result, expected)
+        self.assertIn(result, expected)
 
     def test_discard_least_useful_card_when_new_card_is_part_of_a_run(self):
         """

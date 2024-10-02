@@ -64,39 +64,48 @@ def get_card_number_from_string(card_str):
     return card_number
 
 
-def get_card_number_from_tuple(card_tuple):
-    suit_index, rank_index = card_tuple
+def get_card_rank_suit_index(card_number):
+    if not (1 <= card_number <= 52):
+        raise ValueError(f"Invalid card number {card_number}. Must be between 1 and 52.")
+
+    suit_index = (card_number - 1) // 13
+    rank_index = (card_number - 1) % 13
+
+    return rank_index, suit_index
+
+
+def get_card_number_from_index_tuple(card_tuple):
+    rank_index, suit_index = card_tuple
 
     card_number = suit_index * 13 + rank_index + 1
     return card_number
 
 
 def find_least_useful_card(full_hand):
+    hand = [get_card_rank_suit_index(card) for card in full_hand]
     useful_cards = set()
     semi_useful_cards = set()
     sets = []
     runs = []
 
     rank_counts = {}
-    for card in full_hand:
-        rank, _ = get_card_rank_suit(card)
+    for card in hand:
+        rank, _ = card
         rank_counts[rank] = rank_counts.get(rank, 0) + 1
 
     for rank, count in rank_counts.items():
         if count >= 3:
-            cards_in_set = [card for card in full_hand if get_card_rank_suit(card)[0] == rank]
+            cards_in_set = [card for card in hand if card[0] == rank]
             sets.append(cards_in_set)
             useful_cards.update(cards_in_set)
         elif count == 2:
-            semi_useful_cards.update([card for card in full_hand if get_card_rank_suit(card)[0] == rank])
+            semi_useful_cards.update([card for card in hand if card[0] == rank])
 
     suit_groups = {}
-    rank_mapping = {rank: i + 1 for i, rank in enumerate(rank_symbols_list)}
 
-    for card in full_hand:
-        rank, suit = get_card_rank_suit(card)
-        rank_num = rank_mapping[rank]
-        suit_groups.setdefault(suit, []).append(rank_num)
+    for card in hand:
+        rank, suit = card
+        suit_groups.setdefault(suit, []).append(rank)
 
     for suit, ranks in suit_groups.items():
         ranks.sort()
@@ -106,14 +115,12 @@ def find_least_useful_card(full_hand):
                 current_run.append(ranks[i])
             else:
                 if len(current_run) >= 3:
-                    run_cards = [card for card in full_hand if get_card_rank_suit(card)[1] == suit and rank_mapping[
-                        get_card_rank_suit(card)[0]] in current_run]
+                    run_cards = [card for card in hand if card[1] == suit and card[0] in current_run]
                     runs.append(run_cards)
                     useful_cards.update(run_cards)
                 current_run = [ranks[i]]
         if len(current_run) >= 3:
-            run_cards = [card for card in full_hand if get_card_rank_suit(card)[1] == suit and rank_mapping[
-                get_card_rank_suit(card)[0]] in current_run]
+            run_cards = [card for card in hand if card[1] == suit and card[0] in current_run]
             runs.append(run_cards)
             useful_cards.update(run_cards)
 
@@ -121,32 +128,34 @@ def find_least_useful_card(full_hand):
         ranks.sort()
         for i in range(len(ranks) - 1):
             if ranks[i + 1] == ranks[i] + 1:
-                run_cards = [card for card in full_hand if
-                             get_card_rank_suit(card)[1] == suit and rank_mapping[get_card_rank_suit(card)[0]] in [
-                                 ranks[i], ranks[i + 1]]]
+                run_cards = [card for card in hand if card[1] == suit and card[0] in [ranks[i], ranks[i + 1]]]
                 if len(run_cards) == 2 and all(card not in useful_cards for card in run_cards):
                     semi_useful_cards.update(run_cards)
 
     semi_useful_cards -= useful_cards
 
     non_useful_cards = []
-    for card in full_hand:
+    for card in hand:
         if card not in useful_cards and card not in semi_useful_cards:
             non_useful_cards.append(card)
 
+    least_useful_card = None
+
     if non_useful_cards:
-        return max(non_useful_cards, key=lambda x: rank_mapping[get_card_rank_suit(x)[0]])
+        least_useful_card = max(non_useful_cards, key=lambda x: x[0])
     elif semi_useful_cards:
-        return max(semi_useful_cards, key=lambda x: rank_mapping[get_card_rank_suit(x)[0]])
+        least_useful_card = max(semi_useful_cards, key=lambda x: x[0])
     else:
         long_set = [_set for _set in sets if len(_set) > 3]
         long_run = [run for run in runs if len(run) > 3]
         if long_set:
-            return max(long_set[0], key=lambda x: rank_mapping[get_card_rank_suit(x)[0]])
+            least_useful_card = max(long_set[0], key=lambda x: x[0])
         elif long_run:
-            return max(long_run[0], key=lambda x: rank_mapping[get_card_rank_suit(x)[0]])
+            least_useful_card = max(long_run[0], key=lambda x: x[0])
         else:
-            return max(useful_cards, key=lambda x: rank_mapping[get_card_rank_suit(x)[0]])
+            least_useful_card = max(useful_cards, key=lambda x: x[0])
+
+    return get_card_number_from_index_tuple(least_useful_card)
 
 
 def generate_metrics(sorted_hand):
@@ -304,7 +313,7 @@ def display_metrics(metrics):
 
 
 if __name__ == '__main__':
-    dataset = generate_dataset(20000)
+    dataset = generate_dataset(10000)
 
     for i, sample in enumerate(dataset[:5], start=1):
         sorted_hand, discard_card, discard_index, metrics = sample
