@@ -1,3 +1,5 @@
+from collections import Counter
+
 import numpy as np
 import random
 import csv
@@ -160,23 +162,18 @@ def find_least_useful_card(full_hand):
 
 def generate_metrics(sorted_hand):
     """
-    Generates a list of metrics based on the hand, top_discard, and action.
+    Generates a list of metrics based on the sorted hand.
 
     Args:
         sorted_hand (list): List of card numbers in the hand.
-        top_discard (int): The top discard card number.
 
     Returns:
         list: List of metric values.
     """
-    ranks = [get_card_rank_suit(card)[0] for card in sorted_hand]
-    rank_mapping_inv = {rank: i + 1 for i, rank in enumerate(rank_symbols_list)}
+    processed_hand = [get_card_rank_suit_index(card) for card in sorted_hand]
+    ranks, suits = zip(*processed_hand)  # ranks: 0-12, suits: 0-3
 
-    try:
-        rank_nums = [rank_mapping_inv[rank] for rank in ranks]
-    except KeyError as e:
-        print(f"KeyError: {e} in ranks {ranks}")
-        raise
+    rank_nums = [rank + 1 for rank in ranks]  # 1-13
 
     average_rank = np.mean(rank_nums)
     normalized_average_rank = average_rank / 13
@@ -185,52 +182,42 @@ def generate_metrics(sorted_hand):
     normalized_median_rank = median_rank / 13
 
     variance = np.var(rank_nums)
-    normalized_variance = variance / 169
+    normalized_variance = variance / 33
 
     rank_range = max(rank_nums) - min(rank_nums)
     normalized_range = rank_range / 12
 
-    high_cards = sum(1 for rank in rank_nums if rank >= 10)
-    proportion_high = high_cards / 10
+    high_cards = sum(rank_num >= 10 for rank_num in rank_nums)
+    proportion_high = high_cards / 11
 
-    low_cards = sum(1 for rank in rank_nums if rank <= 5)
-    proportion_low = low_cards / 10
+    low_cards = sum(rank_num <= 5 for rank_num in rank_nums)
+    proportion_low = low_cards / 11
 
-    sets = 0
-    rank_counts = {}
-    for card in sorted_hand:
-        rank, _ = get_card_rank_suit(card)
-        rank_counts[rank] = rank_counts.get(rank, 0) + 1
-    for count in rank_counts.values():
-        if count >= 3:
-            sets += 1
+    rank_counts = Counter(ranks)
+    suits_counts = Counter(suits)
+
+    sets = sum(1 for count in rank_counts.values() if count >= 3)
     normalized_sets = sets / 3
 
     sequences = 0
     suits_dict = {}
-    for card in sorted_hand:
-        rank, suit = get_card_rank_suit(card)
-        rank_num = rank_mapping_inv[rank]
-        if suit not in suits_dict:
-            suits_dict[suit] = []
-        suits_dict[suit].append(rank_num)
+    for rank_num, suit in zip(rank_nums, suits):
+        suits_dict.setdefault(suit, []).append(rank_num)
+
     for suit, ranks_in_suit in suits_dict.items():
         sorted_ranks = sorted(ranks_in_suit)
         consecutive = 1
         for i in range(1, len(sorted_ranks)):
             if sorted_ranks[i] == sorted_ranks[i - 1] + 1:
                 consecutive += 1
-                if consecutive >= 3:
+                if consecutive == 3:
                     sequences += 1
             else:
                 consecutive = 1
     normalized_sequences = sequences / 3
 
-    total_set_cards = 0
-    for rank, count in rank_counts.items():
-        if count >= 3:
-            total_set_cards += count
-    proportion_in_sets = total_set_cards / 10
+    total_set_cards = sum(count for rank, count in rank_counts.items() if count >= 3)
+    proportion_in_sets = total_set_cards / 11
 
     total_sequence_cards = 0
     for suit, ranks_in_suit in suits_dict.items():
@@ -239,22 +226,16 @@ def generate_metrics(sorted_hand):
         for i in range(1, len(sorted_ranks)):
             if sorted_ranks[i] == sorted_ranks[i - 1] + 1:
                 consecutive += 1
-                if consecutive >= 3:
-                    total_sequence_cards += 2
+                if consecutive == 3:
+                    total_sequence_cards += 3
             else:
                 consecutive = 1
-    proportion_in_sequences = total_sequence_cards / 10
+    proportion_in_sequences = total_sequence_cards / 11
 
-    if sets > 0:
-        average_set_size = total_set_cards / sets
-    else:
-        average_set_size = 0
-    normalized_avg_set_size = average_set_size / 4
+    average_set_size = (total_set_cards / sets) if sets > 0 else 0
+    normalized_avg_set_size = average_set_size / 13
 
-    if sequences > 0:
-        average_sequence_length = total_sequence_cards / sequences
-    else:
-        average_sequence_length = 0
+    average_sequence_length = (total_sequence_cards / sequences) if sequences > 0 else 0
     normalized_avg_seq_length = average_sequence_length / 13
 
     metrics = [
@@ -271,6 +252,11 @@ def generate_metrics(sorted_hand):
         normalized_avg_set_size,
         normalized_avg_seq_length,
     ]
+
+    for i, metric in enumerate(metrics):
+        if metric < 0 or metric > 1:
+            print(i, metric)
+            raise ValueError("Metric must be between 0 and 1")
 
     return metrics
 
@@ -313,7 +299,7 @@ def display_metrics(metrics):
 
 
 if __name__ == '__main__':
-    dataset = generate_dataset(10000)
+    dataset = generate_dataset(100000)
 
     for i, sample in enumerate(dataset[:5], start=1):
         sorted_hand, discard_card, discard_index, metrics = sample
