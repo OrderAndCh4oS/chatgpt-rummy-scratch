@@ -298,9 +298,8 @@ def display_metrics(metrics):
         print(f"  {name}: {value:.4f}")
 
 
-if __name__ == '__main__':
-    dataset = generate_dataset(100000)
-
+def generate(n, filename):
+    dataset = generate_dataset(n)
     for i, sample in enumerate(dataset[:5], start=1):
         sorted_hand, discard_card, discard_index, metrics = sample
 
@@ -309,15 +308,15 @@ if __name__ == '__main__':
         print(f"Discarded Card: {get_card_str(discard_card)}")
         print(f"Discarded Card Index: {discard_index}")
         print(f"Metrics: {metrics}\n")
-
-    # with open('rummy_dataset.csv', 'w', newline='') as csvfile:
-    #     writer = csv.writer(csvfile)
-    #     writer.writerow(['Sorted Hand', 'Discard Card', 'Discard Index', 'Metrics'])
-    #     for sample in dataset:
-    #         writer.writerow(sample)
-
-    with open('rummy_test_dataset.csv', 'w', newline='') as csvfile:
+    with open(filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(['Sorted Hand', 'Discard Card', 'Discard Index', 'Metrics'])
         for sample in dataset:
             writer.writerow(sample)
+
+
+if __name__ == '__main__':
+    print('generating training data…')
+    generate(10000, 'rummy_dataset.csv')
+    print('generating test data…')
+    generate(2000, 'rummy_test_dataset.csv')
