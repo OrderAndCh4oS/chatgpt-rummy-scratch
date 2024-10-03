@@ -317,6 +317,6 @@ def generate(n, filename):
 
 if __name__ == '__main__':
     print('generating training data…')
-    generate(10000, 'rummy_dataset.csv')
+    generate(100000, 'rummy_dataset.csv')
     print('generating test data…')
-    generate(2000, 'rummy_test_dataset.csv')
+    generate(20000, 'rummy_test_dataset.csv')
